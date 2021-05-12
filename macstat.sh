@@ -59,20 +59,59 @@ function measure
     tmBackupAgeSeconds="$((currentDate - lastTmBackupDate))"
 }
 
+function printAll
+{
+    printPercent "CPU" "${cpuPercent}"
+    printPercent "RAM" "${ramPercent}"
+    printPercent "HDD space" "${hddSpaceUsagePercent}"
+    printPercent "HDD inode" "${hddInodeUsagePercent}"
+    printPercent "Batt" "${batteryPercent}"
+    printPercent "Batt Keyboard" "${batteryKeyboardPercent}"
+    printPercent "Batt Mouse" "${batteryMousePercent}"
+    printTimeSpan "TM Backup Age" "${tmBackupAgeSeconds}"
+}
+
+descLen=13
+
+# Print measured percentage value
+# printPercent <description> <value>
+function printPercent
+{
+    if [[ -n $2 ]]; then
+        printf "%-${descLen}s: %3d%%\n" "$1" "$2"
+    fi
+}
+
+# Print measured time span value
+# printPercent <description> <time span in seconds>
+function printTimeSpan
+{
+    if [[ -n $2 ]]; then
+        local span
+        local days
+        local hours
+        local mins
+        span=$2
+        days="$(( span / 60 / 60 / 24 ))"
+        hours="$(( ( span / 60 /60 ) % 24 ))"
+        mins="$(( ( span / 60 ) % 60 ))"
+        printf "%-${descLen}s: " "$1"
+        if [[ ${days} -gt 0 ]]; then
+            echo -n "${days}d"
+        fi
+        if [[ ${hours} -gt 0 || ${days} -gt 0 ]]; then
+            printf "%02dh" "${hours}"
+        fi
+        printf "%02dm\n" "${mins}"
+    fi
+}
+
 # main
 function main
 {
     measure
+    printAll
 
-    # echo "TODO: HW information. I know what mac I have!"
-    echo "CPU          : ${cpuPercent}%"
-    echo "RAM          : ${ramPercent}%"
-    echo "HDD space    : ${hddSpaceUsagePercent}%"
-    echo "HDD inode    : ${hddInodeUsagePercent}%"
-    # echo "Batt         : ${batteryPercent}"
-    echo "Batt Keyboard: ${batteryKeyboardPercent}%"
-    echo "Batt Mouse   : ${batteryMousePercent}%"
-    echo "TM Backup Age: $((tmBackupAgeSeconds / 60 / 60))h$(( ( tmBackupAgeSeconds / 60 ) % 60 ))m"
     exit 0
 }
 

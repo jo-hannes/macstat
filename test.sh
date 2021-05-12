@@ -1,5 +1,5 @@
 #!/bin/bash
-#SPDX-License-Identifier: GPL-3.0-only
+#SPDX-License-Identifier: GPL-2.0-only
 # Copyright 2020 Johannes Eigner <jo-hannes@dev-urandom.de>
 
 # This script will run various tests
