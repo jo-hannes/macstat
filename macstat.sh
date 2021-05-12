@@ -8,9 +8,11 @@
 function help
 {
     cat <<HelpText
-Usage: $(basename "${0}")
+Usage: $(basename "${0}") [-bh]
 
 Display important system statistics of macOS
+    -b  Display bars
+    -h  Display help
 HelpText
 }
 
@@ -73,12 +75,34 @@ function printAll
 
 descLen=13
 
+# Print usage bar
+# printBar <value>
+function printBar
+{
+    local val
+    local fillLen
+    local freeLen
+    val="$1"
+    fillLen="$(( barLen * val / 100 ))"
+    freeLen="$(( barLen - fillLen ))"
+    printf " ["
+    if [[ $fillLen -gt 0 ]]; then
+        printf "%0.s#" $(seq 1 $fillLen)
+    fi
+    printf "%0.s " $(seq 1 $freeLen)
+    printf "]"
+}
+
 # Print measured percentage value
 # printPercent <description> <value>
 function printPercent
 {
     if [[ -n $2 ]]; then
-        printf "%-${descLen}s: %3d%%\n" "$1" "$2"
+        printf "%-${descLen}s: %3d%%" "$1" "$2"
+        if [[ ${bars} -eq 1 ]]; then
+            printBar "$2"
+        fi
+        printf "\n"
     fi
 }
 
@@ -109,6 +133,28 @@ function printTimeSpan
 # main
 function main
 {
+    # parse options
+    bars=0
+    while getopts bh opt; do
+        case $opt in
+        b)
+            bars=1
+            local colLen
+            colLen=$(tput cols)
+            barLen=$(( colLen - descLen - 9 ))
+            ;;
+        h)
+            help
+            exit 0
+            ;;
+        *)
+            echo "Invalid argument"
+            help
+            exit 1
+            ;;
+        esac
+    done
+
     measure
     printAll
 
