@@ -16,8 +16,16 @@ Display important system statistics of macOS
 HelpText
 }
 
-# do all measurements
-function measure
+# configuration
+# currently we need to specify the device for measuring hdd usage
+cfgMacHddUsageDev="/dev/disk1s1"
+
+# measuremnt configuration
+cfgDescription=("CPU"      "RAM"      "HDD space"          "HDD inode"          "Batt"         "Batt Keyboard"        "Batt Mouse"        "TM Backup Age")
+   cfgFunction=(cpuPercent ramPercent hddSpaceUsagePercent hddInodeUsagePercent batteryPercent batteryKeyboardPercent batteryMousePercent tmBackupAgeSeconds)
+
+
+function cpuPercent
 {
     # cpu percentage
     # Note: CPU usage is scaled per thread. So a CPU with n threads will report
@@ -26,53 +34,68 @@ function measure
     numThreads=$(sysctl -n hw.ncpu)
     local cpuTotal
     cpuTotal=$(ps -A -o %cpu | awk '{s+=$1} END {print s}' | tr ',' '.')
-    cpuPercent=$(echo "${cpuTotal}/${numThreads}" | bc)
+    echo "${cpuTotal}/${numThreads}" | bc
+}
 
+function ramPercent
+{
     # ram percentage
     # vm_stat or memory_pressure?
     local ramFreePercent
     ramFreePercent=$(memory_pressure | grep "System-wide memory free percentage" | cut -d: -f2 | tr -d %)
-    ramPercent="$(( 100 - ramFreePercent ))"
+    echo $(( 100 - ramFreePercent ))
+}
 
-    # hdd usage
-    # currently we need to specify the device to measure
-    local macHddUsageDev="/dev/disk1s1"
-    local diskinfo
-    diskinfo=$(df | grep ${macHddUsageDev})
-    hddSpaceUsagePercent=$(echo "${diskinfo}" | awk '{print $5}' | tr -d %)
-    hddInodeUsagePercent=$(echo "${diskinfo}" | awk '{print $8}' | tr -d %)
+function hddSpaceUsagePercent
+{
+    df | grep ${cfgMacHddUsageDev} | awk '{print $5}' | tr -d %
+}
 
+function hddInodeUsagePercent
+{
+    df | grep ${cfgMacHddUsageDev} | awk '{print $8}' | tr -d %
+}
+
+function batteryPercent
+{
     # main battery
     # pmset -g batt | grep "InternalBattery" | awk '{print %3}'
     # Return empty value for no battery. As I have no MacBook I can not test
     # this functionality.
-    batteryPercent=""
+    echo ""
+}
 
-    batteryMousePercent=$(ioreg -c AppleDeviceManagementHIDEventService -r -l | grep -i mouse -A 20 | grep BatteryPercent | cut -d= -f2 | cut -d' ' -f2)
+function batteryMousePercent
+{
+    ioreg -c AppleDeviceManagementHIDEventService -r -l | grep -i mouse -A 20 | grep BatteryPercent | cut -d= -f2 | cut -d' ' -f2
+}
 
-    batteryKeyboardPercent=$(ioreg -c AppleDeviceManagementHIDEventService -r -l | grep -i keyboard -A 20 | grep BatteryPercent | cut -d= -f2 | cut -d' ' -f2)
+function batteryKeyboardPercent
+{
+    ioreg -c AppleDeviceManagementHIDEventService -r -l | grep -i keyboard -A 20 | grep BatteryPercent | cut -d= -f2 | cut -d' ' -f2
+}
 
+function tmBackupAgeSeconds
+{
     local lastTmBackupDate
     lastTmBackupDate=$(defaults read "/Library/Preferences/com.apple.TimeMachine.plist" Destinations | sed -n '/SnapshotDates/,$p' | grep -v 'StableLocalSnapshotDate' | grep -e '[0-9]' | awk -F '"' '{print $2}' | sort | tail -n1)
     # convert to unix time for calculation
     lastTmBackupDate=$(date -j -f "%Y-%m-%d %H:%M:%S %z" "${lastTmBackupDate}" +"%s")
     local currentDate
     currentDate=$(date +"%s")
-    tmBackupAgeSeconds="$((currentDate - lastTmBackupDate))"
+    echo "$((currentDate - lastTmBackupDate))"
 }
 
-function printAll
+# do all measurements
+function measure
 {
-    printPercent "CPU" "${cpuPercent}"
-    printPercent "RAM" "${ramPercent}"
-    printPercent "HDD space" "${hddSpaceUsagePercent}"
-    printPercent "HDD inode" "${hddInodeUsagePercent}"
-    printPercent "Batt" "${batteryPercent}"
-    printPercent "Batt Keyboard" "${batteryKeyboardPercent}"
-    printPercent "Batt Mouse" "${batteryMousePercent}"
-    printTimeSpan "TM Backup Age" "${tmBackupAgeSeconds}"
+    for idx in ${!cfgFunction[*]}
+    do
+        value[$idx]=$(${cfgFunction[idx]})
+    done
 }
 
+# Printing functions
 descLen=13
 
 # Print usage bar
@@ -128,6 +151,18 @@ function printTimeSpan
         fi
         printf "%02dm\n" "${mins}"
     fi
+}
+
+function printAll
+{
+    for idx in ${!cfgFunction[*]}
+    do
+        if [[ "${value[$idx]}" -gt 100 ]]; then
+            printTimeSpan "${cfgDescription[idx]}" "${value[$idx]}"
+        else
+            printPercent "${cfgDescription[idx]}" "${value[$idx]}"
+        fi
+    done
 }
 
 # main
