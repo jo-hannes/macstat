@@ -27,13 +27,13 @@ readonly COL_ERR='\033[0;31m'   # Errors in red
 readonly COL_NC='\033[0m'       # No Color
 
 # measuremnt configuration
-cfgDescription=("CPU"      "RAM"      "HDD space"          "HDD inode"          "Batt"         "Batt Keyboard"        "Batt Mouse"        "TM Backup Age")
-   cfgFunction=(cpuPercent ramPercent hddSpaceUsagePercent hddInodeUsagePercent batteryPercent batteryKeyboardPercent batteryMousePercent tmBackupAgeSeconds)
-       cfgWarn=(80         70         75                   20                   20             20                     20                   86400)
-      cfgError=(90         80         85                   30                   10             10                     10                  172800)
+cfgDescription=("CPU" "RAM" "HDD space" "HDD inode" "Batt"  "Batt Keyboard" "Batt Mouse" "TM Backup Age")
+   cfgFunction=(cpu   ram   hddUsage    hddInode    battery battKeyboard    battMouse    tmBackupAge)
+       cfgWarn=(80    70    75          20          20      20              20            86400)
+      cfgError=(90    80    85          30          10      10              10           172800)
 
 
-function cpuPercent
+function cpu
 {
     # cpu percentage
     # Note: CPU usage is scaled per thread. So a CPU with n threads will report
@@ -45,7 +45,7 @@ function cpuPercent
     echo "${cpuTotal}/${numThreads}" | bc
 }
 
-function ramPercent
+function ram
 {
     # ram percentage
     # vm_stat or memory_pressure?
@@ -54,17 +54,17 @@ function ramPercent
     echo $(( 100 - ramFreePercent ))
 }
 
-function hddSpaceUsagePercent
+function hddUsage
 {
     df | grep ${cfgMacHddUsageDev} | awk '{print $5}' | tr -d %
 }
 
-function hddInodeUsagePercent
+function hddInode
 {
     df | grep ${cfgMacHddUsageDev} | awk '{print $8}' | tr -d %
 }
 
-function batteryPercent
+function battery
 {
     # main battery
     # pmset -g batt | grep "InternalBattery" | awk '{print %3}'
@@ -73,17 +73,17 @@ function batteryPercent
     echo ""
 }
 
-function batteryMousePercent
+function battMouse
 {
     ioreg -c AppleDeviceManagementHIDEventService -r -l | grep -i mouse -A 20 | grep BatteryPercent | cut -d= -f2 | cut -d' ' -f2
 }
 
-function batteryKeyboardPercent
+function battKeyboard
 {
     ioreg -c AppleDeviceManagementHIDEventService -r -l | grep -i keyboard -A 20 | grep BatteryPercent | cut -d= -f2 | cut -d' ' -f2
 }
 
-function tmBackupAgeSeconds
+function tmBackupAge
 {
     local lastTmBackupDate
     lastTmBackupDate=$(defaults read "/Library/Preferences/com.apple.TimeMachine.plist" Destinations | sed -n '/SnapshotDates/,$p' | grep -v 'StableLocalSnapshotDate' | grep -e '[0-9]' | awk -F '"' '{print $2}' | sort | tail -n1)
@@ -104,6 +104,7 @@ function measure
 }
 
 # Printing functions
+# TODO calculate from cfgDescription
 descLen=13
 
 # Print usage bar
@@ -168,7 +169,7 @@ function printTimeSpan
     fi
 }
 
-function printAll
+function print
 {
     for idx in ${!cfgFunction[*]}
     do
@@ -231,7 +232,7 @@ function main
     done
 
     measure
-    printAll
+    print
 
     exit 0
 }
